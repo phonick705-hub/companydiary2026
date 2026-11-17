@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    font-family: "Plus Jakarta Sans", "IBM Plex Sans KR", -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  .font-mono,
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}

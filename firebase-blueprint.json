@@ -1,0 +1,470 @@
+{
+  "entities": {
+    "UserWorkspace": {
+      "title": "UserWorkspace",
+      "description": "Root workspace metadata for an authenticated user without storing sensitive PII.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the workspace owner.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Optional display name for workspace greeting.",
+          "minLength": 0,
+          "maxLength": 80
+        },
+        "tagsSeeded": {
+          "type": "boolean",
+          "description": "Whether initial default work hashtags have been seeded."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last update timestamp."
+        }
+      },
+      "required": ["userId", "displayName", "tagsSeeded", "createdAt", "updatedAt"]
+    },
+    "Company": {
+      "title": "Company",
+      "description": "Registered company employment record including tenure, department, and assigned responsibilities.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "companyName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "startDate": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 10,
+          "pattern": "^\\d{4}-\\d{2}(-\\d{2})?$"
+        },
+        "endDate": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 10
+        },
+        "isCurrent": {
+          "type": "boolean"
+        },
+        "department": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "responsibilities": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "companyName",
+        "startDate",
+        "endDate",
+        "isCurrent",
+        "department",
+        "responsibilities",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "Project record capturing deliverables, learnings, challenges, conflicts, resolutions, and chronological milestones.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "companyId": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 128
+        },
+        "projectName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 150
+        },
+        "startDate": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 10,
+          "pattern": "^\\d{4}-\\d{2}(-\\d{2})?$"
+        },
+        "endDate": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 10
+        },
+        "isOngoing": {
+          "type": "boolean"
+        },
+        "deliverables": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 3000
+        },
+        "learnings": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 3000
+        },
+        "challenges": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 3000
+        },
+        "conflicts": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 3000
+        },
+        "solutions": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 3000
+        },
+        "milestones": {
+          "type": "array",
+          "description": "Bounded chronological list of detailed project dates and progress notes (max 30)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "companyId",
+        "projectName",
+        "startDate",
+        "endDate",
+        "isOngoing",
+        "deliverables",
+        "learnings",
+        "challenges",
+        "conflicts",
+        "solutions",
+        "milestones",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "WorkTag": {
+      "title": "WorkTag",
+      "description": "Editable work hashtag used to classify daily work logs.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "description": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 200
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["userId", "name", "description", "createdAt", "updatedAt"]
+    },
+    "DailyLog": {
+      "title": "DailyLog",
+      "description": "Daily work log capturing core task, process, outcome, challenges, solutions, learnings, improvements, and hashtag IDs.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "workDate": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 10,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "companyId": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 128
+        },
+        "projectId": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 128
+        },
+        "tagIds": {
+          "type": "array",
+          "description": "Bounded list of WorkTag IDs (max 15)."
+        },
+        "todos": {
+          "type": "array",
+          "description": "Bounded list of daily todo items with optional core-task emphasis (max 30)."
+        },
+        "coreTask": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 300
+        },
+        "process": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 3000
+        },
+        "outcome": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 3000
+        },
+        "challenges": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 2000
+        },
+        "solutions": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 2000
+        },
+        "learnings": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 2000
+        },
+        "improvements": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 2000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "workDate",
+        "companyId",
+        "projectId",
+        "tagIds",
+        "todos",
+        "coreTask",
+        "process",
+        "outcome",
+        "challenges",
+        "solutions",
+        "learnings",
+        "improvements",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MonthlyReview": {
+      "title": "MonthlyReview",
+      "description": "Monthly retrospective summarizing work, newly acquired skills, improvements, and 3-5 key achievements.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "monthKey": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 7,
+          "pattern": "^\\d{4}-\\d{2}$"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 4000
+        },
+        "newSkills": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 3000
+        },
+        "improvements": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 3000
+        },
+        "keyAchievements": {
+          "type": "array",
+          "description": "Bounded list of 3-5 monthly key achievements (max 10)."
+        },
+        "logCount": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "monthKey",
+        "summary",
+        "newSkills",
+        "improvements",
+        "keyAchievements",
+        "logCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CareerReport": {
+      "title": "CareerReport",
+      "description": "AI-synthesized resume and interview preparation report with deduplicated experiences.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 150
+        },
+        "targetRole": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 150
+        },
+        "dedupedExperiences": {
+          "type": "array",
+          "description": "Bounded list of merged, deduplicated career experience clusters (max 20)."
+        },
+        "resumeSections": {
+          "type": "array",
+          "description": "Bounded list of structured resume/self-introduction drafts (max 10)."
+        },
+        "interviewQuestions": {
+          "type": "array",
+          "description": "Bounded list of anticipated interview questions and STAR answers (max 15)."
+        },
+        "sourceLogCount": {
+          "type": "integer"
+        },
+        "sourceProjectCount": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "title",
+        "targetRole",
+        "dedupedExperiences",
+        "resumeSections",
+        "interviewQuestions",
+        "sourceLogCount",
+        "sourceProjectCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserWorkspace" },
+      "description": "Authenticated user's private workspace root document."
+    },
+    "/users/{userId}/companies/{companyId}": {
+      "schema": { "$ref": "#/entities/Company" },
+      "description": "Companies registered by the user."
+    },
+    "/users/{userId}/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/Project" },
+      "description": "Projects and chronological milestones managed by the user."
+    },
+    "/users/{userId}/tags/{tagId}": {
+      "schema": { "$ref": "#/entities/WorkTag" },
+      "description": "Editable work hashtags owned by the user."
+    },
+    "/users/{userId}/dailyLogs/{logId}": {
+      "schema": { "$ref": "#/entities/DailyLog" },
+      "description": "Daily work logs owned by the user."
+    },
+    "/users/{userId}/monthlyReviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/MonthlyReview" },
+      "description": "Monthly retrospective documents owned by the user."
+    },
+    "/users/{userId}/careerReports/{reportId}": {
+      "schema": { "$ref": "#/entities/CareerReport" },
+      "description": "Deduplicated AI career synthesis reports for resumes and interviews."
+    }
+  }
+}

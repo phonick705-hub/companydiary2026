@@ -1,0 +1,425 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Global Primitives ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function hasWorkspace(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId));
+    }
+
+    function isBoundedString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isValidDateString(val) {
+      return val is string && val.size() == 10 && val.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    function isValidYearMonthString(val) {
+      return val is string && val.size() == 7 && val.matches('^\\d{4}-\\d{2}$');
+    }
+
+    function isValidOptionalDateString(val) {
+      return val is string && (val.size() == 0 || (val.size() >= 7 && val.size() <= 10 && val.matches('^\\d{4}-\\d{2}(-\\d{2})?$')));
+    }
+
+    // --- Validation Blueprints ---
+    function isValidUserWorkspace(data) {
+      return data.keys().hasAll(['userId', 'displayName', 'tagsSeeded', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'displayName', 'tagsSeeded', 'createdAt', 'updatedAt'])
+        && isValidId(data.userId)
+        && data.userId == request.auth.uid
+        && isBoundedString(data.displayName, 0, 80)
+        && data.tagsSeeded is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCompany(data) {
+      return data.keys().hasAll(['userId', 'companyName', 'startDate', 'endDate', 'isCurrent', 'department', 'responsibilities', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'companyName', 'startDate', 'endDate', 'isCurrent', 'department', 'responsibilities', 'createdAt', 'updatedAt'])
+        && isValidId(data.userId)
+        && data.userId == request.auth.uid
+        && isBoundedString(data.companyName, 1, 120)
+        && isBoundedString(data.startDate, 7, 10)
+        && data.startDate.matches('^\\d{4}-\\d{2}(-\\d{2})?$')
+        && isValidOptionalDateString(data.endDate)
+        && data.isCurrent is bool
+        && isBoundedString(data.department, 1, 120)
+        && isBoundedString(data.responsibilities, 1, 2000)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMilestonesList(milestones) {
+      return milestones is list
+        && milestones.size() <= 30
+        && (milestones.size() == 0 || (
+          milestones[0] is map
+          && milestones[0].keys().hasAll(['id', 'date', 'title', 'note'])
+          && milestones[0].keys().hasOnly(['id', 'date', 'title', 'note'])
+          && isBoundedString(milestones[0].id, 1, 64)
+          && isValidDateString(milestones[0].date)
+          && isBoundedString(milestones[0].title, 1, 120)
+          && isBoundedString(milestones[0].note, 0, 1000)
+        ));
+    }
+
+    function isValidProject(data) {
+      return data.keys().hasAll(['userId', 'companyId', 'projectName', 'startDate', 'endDate', 'isOngoing', 'deliverables', 'learnings', 'challenges', 'conflicts', 'solutions', 'milestones', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'companyId', 'projectName', 'startDate', 'endDate', 'isOngoing', 'deliverables', 'learnings', 'challenges', 'conflicts', 'solutions', 'milestones', 'createdAt', 'updatedAt'])
+        && isValidId(data.userId)
+        && data.userId == request.auth.uid
+        && isBoundedString(data.companyId, 0, 128)
+        && isBoundedString(data.projectName, 1, 150)
+        && isBoundedString(data.startDate, 7, 10)
+        && data.startDate.matches('^\\d{4}-\\d{2}(-\\d{2})?$')
+        && isValidOptionalDateString(data.endDate)
+        && data.isOngoing is bool
+        && isBoundedString(data.deliverables, 0, 3000)
+        && isBoundedString(data.learnings, 0, 3000)
+        && isBoundedString(data.challenges, 0, 3000)
+        && isBoundedString(data.conflicts, 0, 3000)
+        && isBoundedString(data.solutions, 0, 3000)
+        && isValidMilestonesList(data.milestones)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidWorkTag(data) {
+      return data.keys().hasAll(['userId', 'name', 'description', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'name', 'description', 'createdAt', 'updatedAt'])
+        && isValidId(data.userId)
+        && data.userId == request.auth.uid
+        && isBoundedString(data.name, 1, 40)
+        && isBoundedString(data.description, 0, 200)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidTagIdsList(tagIds) {
+      return tagIds is list
+        && tagIds.size() <= 15
+        && (tagIds.size() == 0 || isValidId(tagIds[0]));
+    }
+
+    function isValidTodosList(todos) {
+      return todos is list
+        && todos.size() <= 30
+        && (todos.size() == 0 || (
+          todos[0] is map
+          && todos[0].keys().hasAll(['id', 'text', 'done', 'isCore'])
+          && todos[0].keys().hasOnly(['id', 'text', 'done', 'isCore'])
+          && isBoundedString(todos[0].id, 1, 64)
+          && isBoundedString(todos[0].text, 1, 300)
+          && todos[0].done is bool
+          && todos[0].isCore is bool
+        ));
+    }
+
+    function isValidDailyLog(data) {
+      return data.keys().hasAll(['userId', 'workDate', 'companyId', 'projectId', 'tagIds', 'todos', 'coreTask', 'process', 'outcome', 'challenges', 'solutions', 'learnings', 'improvements', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'workDate', 'companyId', 'projectId', 'tagIds', 'todos', 'coreTask', 'process', 'outcome', 'challenges', 'solutions', 'learnings', 'improvements', 'createdAt', 'updatedAt'])
+        && isValidId(data.userId)
+        && data.userId == request.auth.uid
+        && isValidDateString(data.workDate)
+        && isBoundedString(data.companyId, 0, 128)
+        && isBoundedString(data.projectId, 0, 128)
+        && isValidTagIdsList(data.tagIds)
+        && isValidTodosList(data.todos)
+        && isBoundedString(data.coreTask, 0, 300)
+        && isBoundedString(data.process, 0, 3000)
+        && isBoundedString(data.outcome, 0, 3000)
+        && isBoundedString(data.challenges, 0, 2000)
+        && isBoundedString(data.solutions, 0, 2000)
+        && isBoundedString(data.learnings, 0, 2000)
+        && isBoundedString(data.improvements, 0, 2000)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidStringArray(arr, maxItems, maxLen) {
+      return arr is list
+        && arr.size() <= maxItems
+        && (arr.size() == 0 || isBoundedString(arr[0], 1, maxLen));
+    }
+
+    function isValidMonthlyReview(data) {
+      return data.keys().hasAll(['userId', 'monthKey', 'summary', 'newSkills', 'improvements', 'keyAchievements', 'logCount', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'monthKey', 'summary', 'newSkills', 'improvements', 'keyAchievements', 'logCount', 'createdAt', 'updatedAt'])
+        && isValidId(data.userId)
+        && data.userId == request.auth.uid
+        && isValidYearMonthString(data.monthKey)
+        && isBoundedString(data.summary, 0, 4000)
+        && isBoundedString(data.newSkills, 0, 3000)
+        && isBoundedString(data.improvements, 0, 3000)
+        && isValidStringArray(data.keyAchievements, 10, 500)
+        && data.logCount is int
+        && data.logCount >= 0
+        && data.logCount <= 500
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidDedupedExperiences(listVal) {
+      return listVal is list
+        && listVal.size() <= 20
+        && (listVal.size() == 0 || (
+          listVal[0] is map
+          && listVal[0].keys().hasAll(['title', 'mergedFromCount', 'period', 'situation', 'task', 'action', 'result', 'keywords'])
+          && listVal[0].keys().hasOnly(['title', 'mergedFromCount', 'period', 'situation', 'task', 'action', 'result', 'keywords'])
+          && isBoundedString(listVal[0].title, 1, 200)
+          && listVal[0].mergedFromCount is int
+          && isBoundedString(listVal[0].period, 0, 80)
+          && isBoundedString(listVal[0].situation, 0, 1500)
+          && isBoundedString(listVal[0].task, 0, 1500)
+          && isBoundedString(listVal[0].action, 0, 2000)
+          && isBoundedString(listVal[0].result, 0, 1500)
+          && isValidStringArray(listVal[0].keywords, 15, 60)
+        ));
+    }
+
+    function isValidResumeSections(listVal) {
+      return listVal is list
+        && listVal.size() <= 10
+        && (listVal.size() == 0 || (
+          listVal[0] is map
+          && listVal[0].keys().hasAll(['category', 'headline', 'draft'])
+          && listVal[0].keys().hasOnly(['category', 'headline', 'draft'])
+          && isBoundedString(listVal[0].category, 1, 100)
+          && isBoundedString(listVal[0].headline, 1, 200)
+          && isBoundedString(listVal[0].draft, 1, 4000)
+        ));
+    }
+
+    function isValidInterviewQuestions(listVal) {
+      return listVal is list
+        && listVal.size() <= 15
+        && (listVal.size() == 0 || (
+          listVal[0] is map
+          && listVal[0].keys().hasAll(['question', 'intent', 'answerGuide'])
+          && listVal[0].keys().hasOnly(['question', 'intent', 'answerGuide'])
+          && isBoundedString(listVal[0].question, 1, 400)
+          && isBoundedString(listVal[0].intent, 0, 400)
+          && isBoundedString(listVal[0].answerGuide, 1, 3000)
+        ));
+    }
+
+    function isValidCareerReport(data) {
+      return data.keys().hasAll(['userId', 'title', 'targetRole', 'dedupedExperiences', 'resumeSections', 'interviewQuestions', 'sourceLogCount', 'sourceProjectCount', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'title', 'targetRole', 'dedupedExperiences', 'resumeSections', 'interviewQuestions', 'sourceLogCount', 'sourceProjectCount', 'createdAt', 'updatedAt'])
+        && isValidId(data.userId)
+        && data.userId == request.auth.uid
+        && isBoundedString(data.title, 1, 150)
+        && isBoundedString(data.targetRole, 0, 150)
+        && isValidDedupedExperiences(data.dedupedExperiences)
+        && isValidResumeSections(data.resumeSections)
+        && isValidInterviewQuestions(data.interviewQuestions)
+        && data.sourceLogCount is int
+        && data.sourceLogCount >= 0
+        && data.sourceProjectCount is int
+        && data.sourceProjectCount >= 0
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if isSignedIn() && existing().userId == request.auth.uid;
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserWorkspace(incoming())
+        && incoming().userId == userId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserWorkspace(incoming())
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['tagsSeeded', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'tagsSeeded', 'updatedAt'])
+        );
+      allow delete: if isValidId(userId) && isOwner(userId);
+
+      match /companies/{companyId} {
+        allow get: if isValidId(userId) && isValidId(companyId) && isOwner(userId);
+        allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(companyId)
+          && isOwner(userId)
+          && isValidCompany(incoming())
+          && incoming().userId == userId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && hasWorkspace(userId);
+        allow update: if isValidId(userId)
+          && isValidId(companyId)
+          && isOwner(userId)
+          && isValidCompany(incoming())
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly(['companyName', 'startDate', 'endDate', 'isCurrent', 'department', 'responsibilities', 'updatedAt'])
+          )
+          && hasWorkspace(userId);
+        allow delete: if isValidId(userId) && isValidId(companyId) && isOwner(userId);
+      }
+
+      match /projects/{projectId} {
+        allow get: if isValidId(userId) && isValidId(projectId) && isOwner(userId);
+        allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(projectId)
+          && isOwner(userId)
+          && isValidProject(incoming())
+          && incoming().userId == userId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && hasWorkspace(userId);
+        allow update: if isValidId(userId)
+          && isValidId(projectId)
+          && isOwner(userId)
+          && isValidProject(incoming())
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly(['companyId', 'projectName', 'startDate', 'endDate', 'isOngoing', 'deliverables', 'learnings', 'challenges', 'conflicts', 'solutions', 'milestones', 'updatedAt'])
+          )
+          && hasWorkspace(userId);
+        allow delete: if isValidId(userId) && isValidId(projectId) && isOwner(userId);
+      }
+
+      match /tags/{tagId} {
+        allow get: if isValidId(userId) && isValidId(tagId) && isOwner(userId);
+        allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(tagId)
+          && isOwner(userId)
+          && isValidWorkTag(incoming())
+          && incoming().userId == userId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && hasWorkspace(userId);
+        allow update: if isValidId(userId)
+          && isValidId(tagId)
+          && isOwner(userId)
+          && isValidWorkTag(incoming())
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'updatedAt'])
+          )
+          && hasWorkspace(userId);
+        allow delete: if isValidId(userId) && isValidId(tagId) && isOwner(userId);
+      }
+
+      match /dailyLogs/{logId} {
+        allow get: if isValidId(userId) && isValidId(logId) && isOwner(userId);
+        allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(logId)
+          && isOwner(userId)
+          && isValidDailyLog(incoming())
+          && incoming().userId == userId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && hasWorkspace(userId);
+        allow update: if isValidId(userId)
+          && isValidId(logId)
+          && isOwner(userId)
+          && isValidDailyLog(incoming())
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly(['workDate', 'companyId', 'projectId', 'tagIds', 'todos', 'coreTask', 'process', 'outcome', 'challenges', 'solutions', 'learnings', 'improvements', 'updatedAt'])
+          )
+          && hasWorkspace(userId);
+        allow delete: if isValidId(userId) && isValidId(logId) && isOwner(userId);
+      }
+
+      match /monthlyReviews/{reviewId} {
+        allow get: if isValidId(userId) && isValidId(reviewId) && isOwner(userId);
+        allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(reviewId)
+          && isOwner(userId)
+          && isValidMonthlyReview(incoming())
+          && incoming().userId == userId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && hasWorkspace(userId);
+        allow update: if isValidId(userId)
+          && isValidId(reviewId)
+          && isOwner(userId)
+          && isValidMonthlyReview(incoming())
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly(['summary', 'newSkills', 'improvements', 'keyAchievements', 'logCount', 'updatedAt'])
+          )
+          && hasWorkspace(userId);
+        allow delete: if isValidId(userId) && isValidId(reviewId) && isOwner(userId);
+      }
+
+      match /careerReports/{reportId} {
+        allow get: if isValidId(userId) && isValidId(reportId) && isOwner(userId);
+        allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+        allow create: if isValidId(userId)
+          && isValidId(reportId)
+          && isOwner(userId)
+          && isValidCareerReport(incoming())
+          && incoming().userId == userId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && hasWorkspace(userId);
+        allow update: if isValidId(userId)
+          && isValidId(reportId)
+          && isOwner(userId)
+          && isValidCareerReport(incoming())
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly(['title', 'targetRole', 'dedupedExperiences', 'resumeSections', 'interviewQuestions', 'sourceLogCount', 'sourceProjectCount', 'updatedAt'])
+          )
+          && hasWorkspace(userId);
+        allow delete: if isValidId(userId) && isValidId(reportId) && isOwner(userId);
+      }
+    }
+  }
+}

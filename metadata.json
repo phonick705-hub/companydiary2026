@@ -1,0 +1,6 @@
+{
+  "name": "업무일지",
+  "description": "회사 경력, 프로젝트 타임라인, 일일 업무 기록, AI 월간 회고 및 자기소개서·면접 대비 통합 정리 서비스",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
